@@ -1,0 +1,5 @@
+{
+  "name": "BudgetGuard",
+  "description": "Offline-first financial tracker with predictive cash flow analysis and Runout Shield alerts.",
+  "requestFramePermissions": []
+}
