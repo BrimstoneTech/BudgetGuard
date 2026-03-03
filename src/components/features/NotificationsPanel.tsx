@@ -5,14 +5,14 @@ import { cn } from '../../utils/theme';
 import { format } from 'date-fns';
 
 export const NotificationsPanel = ({ onClose }: { onClose: () => void }) => {
-    const { notifications, setNotifications } = useBudget();
+    const { notifications, markNotificationRead, deleteNotification } = useBudget();
 
-    const markAsRead = (id: number) => {
-        setNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    const markAsRead = async (id: number) => {
+        await markNotificationRead(id);
     };
 
-    const dismissNotification = (id: number) => {
-        setNotifications(notifications.filter(n => n.id !== id));
+    const dismissNotification = async (id: number) => {
+        await deleteNotification(id);
     };
 
     return (

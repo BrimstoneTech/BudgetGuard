@@ -1,27 +1,39 @@
-import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { Transaction, Bill, IncomeSource, BudgetEnvelope, AppNotification } from '../types';
 import { CURRENCIES, EXCHANGE_RATES } from '../utils/currency';
 import { isSameDay, addDays, differenceInDays, format } from 'date-fns';
+import { api } from '../services/api';
 
 interface BudgetContextType {
     showSetup: boolean;
     setShowSetup: React.Dispatch<React.SetStateAction<boolean>>;
     displayCurrency: string;
-    setDisplayCurrency: React.Dispatch<React.SetStateAction<string>>;
+    setDisplayCurrency: (val: string) => Promise<void>;
     balance: number;
-    setBalance: React.Dispatch<React.SetStateAction<number>>;
+    setBalance: (val: number) => Promise<void>;
     dailyTarget: number;
-    setDailyTarget: React.Dispatch<React.SetStateAction<number>>;
+    setDailyTarget: (val: number) => Promise<void>;
+
     transactions: Transaction[];
-    setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
+    addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
+    deleteTransaction: (id: number) => Promise<void>;
+
     bills: Bill[];
-    setBills: React.Dispatch<React.SetStateAction<Bill[]>>;
+    addBill: (bill: Omit<Bill, 'id'>) => Promise<void>;
+    deleteBill: (id: number) => Promise<void>;
+
     envelopes: BudgetEnvelope[];
-    setEnvelopes: React.Dispatch<React.SetStateAction<BudgetEnvelope[]>>;
+    addEnvelope: (env: Omit<BudgetEnvelope, 'id' | 'spent'>) => Promise<void>;
+    deleteEnvelope: (id: number) => Promise<void>;
+
     incomes: IncomeSource[];
-    setIncomes: React.Dispatch<React.SetStateAction<IncomeSource[]>>;
+    addIncome: (inc: Omit<IncomeSource, 'id'>) => Promise<void>;
+    deleteIncome: (id: number) => Promise<void>;
+
     notifications: AppNotification[];
-    setNotifications: React.Dispatch<React.SetStateAction<AppNotification[]>>;
+    addNotification: (notif: Omit<AppNotification, 'id' | 'read'>) => Promise<void>;
+    markNotificationRead: (id: number) => Promise<void>;
+    deleteNotification: (id: number) => Promise<void>;
 
     todaySpend: number;
     yesterdaySpend: number;
@@ -30,34 +42,153 @@ interface BudgetContextType {
     projectionData: any[];
     daysUntilZero: number;
     alertLevel: { color: string; text: string; icon: any };
+    isDataLoaded: boolean;
 }
 
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 
 export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [showSetup, setShowSetup] = useState(true);
-    const [displayCurrency, setDisplayCurrency] = useState('UGX');
-    const [balance, setBalance] = useState(0);
-    const [dailyTarget, setDailyTarget] = useState(0);
+    const [displayCurrency, setLocalDisplayCurrency] = useState('UGX');
+    const [balance, setLocalBalance] = useState(0);
+    const [dailyTarget, setLocalDailyTarget] = useState(0);
 
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [bills, setBills] = useState<Bill[]>([]);
-    const [envelopes, setEnvelopes] = useState<BudgetEnvelope[]>([]);
-    const [incomes, setIncomes] = useState<IncomeSource[]>([]);
-    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+    const [transactions, setLocalTransactions] = useState<Transaction[]>([]);
+    const [bills, setLocalBills] = useState<Bill[]>([]);
+    const [envelopes, setLocalEnvelopes] = useState<BudgetEnvelope[]>([]);
+    const [incomes, setLocalIncomes] = useState<IncomeSource[]>([]);
+    const [notifications, setLocalNotifications] = useState<AppNotification[]>([]);
+    const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+    // Initial Data Fetch
+    const loadData = useCallback(async () => {
+        try {
+            const [txs, blls, envs, incs, notifs, sttngs] = await Promise.all([
+                api.getTransactions(),
+                api.getBills(),
+                api.getEnvelopes(),
+                api.getIncomes(),
+                api.getNotifications(),
+                api.getSettings()
+            ]);
+
+            setLocalTransactions(txs);
+            setLocalBills(blls);
+            setLocalEnvelopes(envs);
+            setLocalIncomes(incs);
+            setLocalNotifications(notifs);
+
+            if (sttngs.balance) setLocalBalance(Number(sttngs.balance));
+            if (sttngs.dailyTarget) setLocalDailyTarget(Number(sttngs.dailyTarget));
+            if (sttngs.displayCurrency) setLocalDisplayCurrency(sttngs.displayCurrency);
+
+            // If we have settings saved, hide the setup wizard
+            if (sttngs.setupComplete === 'true') {
+                setShowSetup(false);
+            }
+
+            setIsDataLoaded(true);
+        } catch (error) {
+            console.error("Failed to load initial data", error);
+            // Fallback for offline mode could be added here
+        }
+    }, []);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+
+    // Mutator Wrappers
+    const setDisplayCurrency = async (val: string) => {
+        setLocalDisplayCurrency(val);
+        await api.updateSettings({ displayCurrency: val });
+    };
+
+    const setBalance = async (val: number) => {
+        setLocalBalance(val);
+        await api.updateSettings({ balance: val });
+    };
+
+    const setDailyTarget = async (val: number) => {
+        setLocalDailyTarget(val);
+        await api.updateSettings({ dailyTarget: val });
+    };
+
+    const addTransaction = async (tx: Omit<Transaction, 'id'>) => {
+        try {
+            const { id } = await api.addTransaction(tx);
+            setLocalTransactions([{ ...tx, id }, ...transactions]);
+            // If it modifies an envelope, reload envelopes
+            if (tx.category) {
+                const refreshedEnvs = await api.getEnvelopes();
+                setLocalEnvelopes(refreshedEnvs);
+            }
+        } catch (e) { console.error('Failed to add transaction', e); }
+    };
+
+    const deleteTransaction = async (id: number) => {
+        await api.deleteTransaction(id);
+        setLocalTransactions(transactions.filter(t => t.id !== id));
+    };
+
+    const addBill = async (bill: Omit<Bill, 'id'>) => {
+        const { id } = await api.addBill(bill);
+        setLocalBills([...bills, { ...bill, id }]);
+    };
+
+    const deleteBill = async (id: number) => {
+        await api.deleteBill(id);
+        setLocalBills(bills.filter(b => b.id !== id));
+    };
+
+    const addEnvelope = async (env: Omit<BudgetEnvelope, 'id' | 'spent'>) => {
+        const { id } = await api.addEnvelope(env);
+        setLocalEnvelopes([...envelopes, { ...env, id, spent: 0 }]);
+    };
+
+    const deleteEnvelope = async (id: number) => {
+        await api.deleteEnvelope(id);
+        setLocalEnvelopes(envelopes.filter(e => e.id !== id));
+    };
+
+    const addIncome = async (inc: Omit<IncomeSource, 'id'>) => {
+        const { id } = await api.addIncome(inc);
+        setLocalIncomes([...incomes, { ...inc, id }]);
+    };
+
+    const deleteIncome = async (id: number) => {
+        await api.deleteIncome(id);
+        setLocalIncomes(incomes.filter(i => i.id !== id));
+    };
+
+    const addNotification = async (notif: Omit<AppNotification, 'id' | 'read'>) => {
+        const { id } = await api.addNotification(notif);
+        setLocalNotifications([{ ...notif, id, read: false }, ...notifications]);
+    };
+
+    const markNotificationRead = async (id: number) => {
+        await api.markNotificationRead(id);
+        setLocalNotifications(notifications.map(n => n.id === id ? { ...n, read: true } : n));
+    };
+
+    const deleteNotification = async (id: number) => {
+        await api.deleteNotification(id);
+        setLocalNotifications(notifications.filter(n => n.id !== id));
+    };
 
     // Computed Values
     const todaySpend = useMemo(() => {
         const today = new Date();
         return transactions
-            .filter(tx => isSameDay(tx.date, today))
+            .filter(tx => isSameDay(new Date(tx.date), today))
             .reduce((sum, tx) => sum + tx.amount, 0);
     }, [transactions]);
 
     const yesterdaySpend = useMemo(() => {
         const yesterday = addDays(new Date(), -1);
         return transactions
-            .filter(tx => isSameDay(tx.date, yesterday))
+            .filter(tx => isSameDay(new Date(tx.date), yesterday))
             .reduce((sum, tx) => sum + tx.amount, 0);
     }, [transactions]);
 
@@ -78,10 +209,10 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         for (let i = 0; i < 30; i++) {
             const date = addDays(today, i);
-            current -= dailyTarget; // Note: original code subtracted dailyTarget
+            current -= dailyTarget;
 
             bills.forEach(bill => {
-                if (isSameDay(bill.date, date)) current -= bill.amount;
+                if (isSameDay(new Date(bill.date), date)) current -= bill.amount;
             });
 
             incomes.forEach(income => {
@@ -114,13 +245,13 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             displayCurrency, setDisplayCurrency,
             balance, setBalance,
             dailyTarget, setDailyTarget,
-            transactions, setTransactions,
-            bills, setBills,
-            envelopes, setEnvelopes,
-            incomes, setIncomes,
-            notifications, setNotifications,
+            transactions, addTransaction, deleteTransaction,
+            bills, addBill, deleteBill,
+            envelopes, addEnvelope, deleteEnvelope,
+            incomes, addIncome, deleteIncome,
+            notifications, addNotification, markNotificationRead, deleteNotification,
             todaySpend, yesterdaySpend, efficiency,
-            currentCurrency, projectionData, daysUntilZero, alertLevel
+            currentCurrency, projectionData, daysUntilZero, alertLevel, isDataLoaded
         }}>
             {children}
         </BudgetContext.Provider>

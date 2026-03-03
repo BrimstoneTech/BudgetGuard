@@ -23,10 +23,10 @@ export const DashboardScreen = () => {
         balance, setBalance,
         dailyTarget, setDailyTarget,
         displayCurrency,
-        transactions, setTransactions,
-        bills, setBills,
-        envelopes, setEnvelopes,
-        incomes, setIncomes,
+        transactions, addTransaction, deleteTransaction,
+        bills, addBill, deleteBill,
+        envelopes, addEnvelope, deleteEnvelope,
+        incomes, addIncome, deleteIncome,
         notifications,
         todaySpend, yesterdaySpend, efficiency,
         currentCurrency, projectionData, daysUntilZero, alertLevel
@@ -44,79 +44,76 @@ export const DashboardScreen = () => {
     const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
     const [newEnvelope, setNewEnvelope] = useState({ name: '', limit: '', period: 'monthly' as 'weekly' | 'monthly', color: 'emerald' });
 
-    const handleAddBill = () => {
-        if (!newBill.name || !newBill.amount) return;
-        const bill: Bill = {
-            id: Date.now(),
+    // Assuming these states are defined elsewhere for the modals
+    const [setShowBillModal] = useState(false);
+    const [setShowTxModal] = useState(false);
+    const [setShowEnvelopeModal] = useState(false);
+    const [setShowIncomeModal] = useState(false);
+
+    const handleAddBill = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const bill = {
             name: newBill.name,
             amount: Number(newBill.amount),
-            date: new Date(newBill.date),
-            category: 'General'
+            date: new Date(newBill.date).toISOString(),
+            category: newBill.category
         };
-        setBills([...bills, bill]);
-        setNewBill({ name: '', amount: '', date: format(new Date(), 'yyyy-MM-dd') });
-        setIsAddingBill(false);
+        await addBill(bill);
+        setNewBill({ name: '', amount: '', date: '', category: '' });
+        setShowBillModal(false);
     };
 
-    const handleLogExpense = () => {
-        if (!newExpense.name || !newExpense.amount) return;
-        const rate = EXCHANGE_RATES[newExpense.currency] || 1;
-        const amountInUGX = Number(newExpense.amount) * rate;
-        const transaction: Transaction = {
-            id: Date.now(),
-            name: newExpense.name,
-            amount: amountInUGX,
-            originalAmount: Number(newExpense.amount),
-            originalCurrency: newExpense.currency,
-            date: new Date(),
-            category: newExpense.category,
-            note: newExpense.note
+    const handleAddTransaction = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const amountNum = Number(newExpense.amount); // Changed from newTx to newExpense
+        const rate = EXCHANGE_RATES[newExpense.currency as keyof typeof EXCHANGE_RATES] || 1; // Changed from newTx to newExpense
+        const baseAmount = newExpense.currency === displayCurrency.code ? amountNum : amountNum / rate; // Changed from newTx to newExpense, and displayCurrency to displayCurrency.code
+
+        const transaction = {
+            name: newExpense.name, // Changed from newTx to newExpense
+            amount: baseAmount,
+            originalAmount: amountNum,
+            originalCurrency: newExpense.currency, // Changed from newTx to newExpense
+            date: new Date().toISOString(),
+            category: newExpense.category, // Changed from newTx to newExpense
+            note: newExpense.note // Changed from newTx to newExpense
         };
 
-        // Update envelopes
-        setEnvelopes(envelopes.map(env =>
-            env.name === newExpense.category
-                ? { ...env, spent: env.spent + (amountInUGX / EXCHANGE_RATES.USD) }
-                : env
-        ));
+        await addTransaction(transaction);
+        setBalance(balance - baseAmount);
 
-        setTransactions([transaction, ...transactions]);
-        setBalance(prev => prev - amountInUGX);
-        setNewExpense({ name: '', amount: '', currency: 'UGX', category: 'General', note: '' });
-        setIsLoggingExpense(false);
+        setNewExpense({ name: '', amount: '', currency: displayCurrency.code, category: 'General', note: '' }); // Changed from newTx to newExpense, and displayCurrency to displayCurrency.code
+        setShowTxModal(false);
     };
 
-    const handleAddEnvelope = () => {
-        if (!newEnvelope.name || !newEnvelope.limit) return;
-        const envelope: BudgetEnvelope = {
-            id: Date.now(),
+    const handleAddEnvelope = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const envelope = {
             name: newEnvelope.name,
             limit: Number(newEnvelope.limit),
-            spent: 0,
-            period: newEnvelope.period,
+            period: newEnvelope.period as 'weekly' | 'monthly',
             color: newEnvelope.color
         };
-        setEnvelopes([...envelopes, envelope]);
-        setNewEnvelope({ name: '', limit: '', period: 'monthly', color: 'emerald' });
-        setIsAddingEnvelope(false);
+        await addEnvelope(envelope);
+        setNewEnvelope({ name: '', limit: '', period: 'monthly', color: 'emerald' }); // Changed color to 'emerald' to match initial state
+        setShowEnvelopeModal(false);
     };
 
-    const handleAddIncome = () => {
-        if (!newIncome.name || !newIncome.amount) return;
-        const income: IncomeSource = {
-            id: Date.now(),
+    const handleAddIncome = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const income = {
             name: newIncome.name,
             amount: Number(newIncome.amount),
-            frequency: newIncome.frequency,
-            startDate: new Date(newIncome.startDate)
+            frequency: newIncome.frequency as Frequency, // Changed 'any' to 'Frequency'
+            startDate: new Date(newIncome.startDate).toISOString()
         };
-        setIncomes([...incomes, income]);
-        setNewIncome({ name: '', amount: '', frequency: 'monthly', startDate: format(new Date(), 'yyyy-MM-dd') });
-        setIsAddingIncome(false);
+        await addIncome(income);
+        setNewIncome({ name: '', amount: '', frequency: 'monthly', startDate: format(new Date(), 'yyyy-MM-dd') }); // Changed startDate to match initial state format
+        setShowIncomeModal(false);
     };
 
-    const removeIncome = (id: number) => {
-        setIncomes(incomes.filter(inc => inc.id !== id));
+    const handleRemoveIncome = async (id: number) => {
+        await deleteIncome(id);
     };
 
     const AlertIcon = alertLevel.icon || ShieldAlert;
@@ -175,7 +172,7 @@ export const DashboardScreen = () => {
                                             <textarea placeholder="Add a note (optional)" value={newExpense.note} onChange={e => setNewExpense({ ...newExpense, note: e.target.value })} className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 resize-none h-20" />
                                         </div>
                                         <div className="flex gap-2">
-                                            <button onClick={handleLogExpense} className="flex-1 py-2 bg-zinc-900 text-white text-xs font-bold uppercase tracking-wider rounded-lg">Log Expense</button>
+                                            <button onClick={handleAddTransaction} className="flex-1 py-2 bg-zinc-900 text-white text-xs font-bold uppercase tracking-wider rounded-lg">Log Expense</button>
                                             <button onClick={() => setIsLoggingExpense(false)} className="flex-1 py-2 bg-zinc-200 text-zinc-600 text-xs font-bold uppercase tracking-wider rounded-lg">Cancel</button>
                                         </div>
                                     </div>
@@ -450,7 +447,7 @@ export const DashboardScreen = () => {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <p className="text-sm font-mono font-bold text-rose-600">-{formatMoney(bill.amount * EXCHANGE_RATES.USD, displayCurrency.code)}</p>
-                                            <button onClick={() => setBills(bills.filter(b => b.id !== bill.id))} className="p-1 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                                            <button onClick={() => deleteBill(bill.id)} className="p-1 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
                                 ))}
@@ -485,7 +482,7 @@ export const DashboardScreen = () => {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <p className="text-sm font-mono font-bold text-emerald-600">+{formatMoney(income.amount * EXCHANGE_RATES.USD, displayCurrency.code)}</p>
-                                            <button onClick={() => removeIncome(income.id)} className="p-1 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                                            <button onClick={() => handleRemoveIncome(income.id)} className="p-1 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
                                         </div>
                                     </div>
                                 ))}

@@ -12,8 +12,8 @@ export const SetupWizard = () => {
         displayCurrency, setDisplayCurrency,
         balance, setBalance,
         dailyTarget, setDailyTarget,
-        incomes, setIncomes,
-        envelopes, setEnvelopes,
+        incomes, addIncome,
+        envelopes, addEnvelope,
         currentCurrency
     } = useBudget();
 
@@ -23,31 +23,28 @@ export const SetupWizard = () => {
     const [isAddingEnvelope, setIsAddingEnvelope] = useState(false);
     const [newEnvelope, setNewEnvelope] = useState({ name: '', limit: '', period: 'monthly' as 'monthly' | 'weekly', color: 'emerald' });
 
-    const handleAddIncome = () => {
+    const handleAddIncome = async () => {
         if (!newIncome.name || !newIncome.amount) return;
-        const income: IncomeSource = {
-            id: Date.now(),
+        const income = {
             name: newIncome.name,
             amount: Number(newIncome.amount),
-            frequency: newIncome.frequency,
-            startDate: new Date(newIncome.startDate)
+            frequency: newIncome.frequency as any,
+            startDate: new Date().toISOString()
         };
-        setIncomes([...incomes, income]);
+        await addIncome(income);
         setNewIncome({ name: '', amount: '', frequency: 'monthly', startDate: format(new Date(), 'yyyy-MM-dd') });
         setIsAddingIncome(false);
     };
 
-    const handleAddEnvelope = () => {
+    const handleAddEnvelope = async () => {
         if (!newEnvelope.name || !newEnvelope.limit) return;
-        const envelope: BudgetEnvelope = {
-            id: Date.now(),
+        const envelope = {
             name: newEnvelope.name,
             limit: Number(newEnvelope.limit),
-            spent: 0,
-            period: newEnvelope.period,
-            color: newEnvelope.color
+            period: 'monthly' as const,
+            color: 'blue'
         };
-        setEnvelopes([...envelopes, envelope]);
+        await addEnvelope(envelope);
         setNewEnvelope({ name: '', limit: '', period: 'monthly', color: 'emerald' });
         setIsAddingEnvelope(false);
     };
