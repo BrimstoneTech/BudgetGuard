@@ -1,20 +1,54 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+  <img width="200" src="public/logo.png" alt="BudgetGuard Logo" />
+  <h1>BudgetGuard</h1>
+  <p><strong>Premium Offline-First Financial Intelligence</strong></p>
 </div>
 
-# Run and deploy your AI Studio app
+## Overview
 
-This contains everything you need to run your app locally.
+**BudgetGuard** is a highly secure, privacy-focused personal finance and budgeting application designed for Android. Built by TAISAN under BrimstoneTech, BudgetGuard ensures your financial data never leaves your device by utilizing a true offline-first architecture. 
 
-View your app in AI Studio: https://ai.studio/apps/95f9aae5-3809-41fa-976a-9d92a6b892a9
+## Key Features
 
-## Run Locally
+- **True Offline Storage**: Relies completely on client-side `IndexedDB` storage, meaning absolutely zero data is sent to external servers. Your finances stay on your phone.
+- **Biometric & PIN Security**: Protects your data with a custom 4-digit PIN and native hardware biometric fingerprint scanning.
+- **Smart Voice Entry**: Quickly add transactions hands-free using the native Web Speech API.
+- **Envelope Budgeting**: Organize your spending into distinct "Budget Pots" to effortlessly track limits.
+- **Savings Goals & Tasks**: Setup dynamic savings targets with built-in habit-tracking tasks and progress notifications.
+- **Dynamic Theming**: Choose between crisp Light mode, deep Dark mode, or our flagship highly stylized "Vibrant/Neon" theme.
+- **Privacy Mode**: Instantly obscure all monetary values on your screen with a single tap for public use.
 
-**Prerequisites:**  Node.js
+## Architecture & Tech Stack
 
+- **Framework**: React + Vite + TypeScript
+- **Styling**: TailwindCSS + Framer Motion (for fluid, gesture-based interactions)
+- **Mobile Engine**: Capacitor (for native Android APIs, including Haptics, Status Bar, and Biometrics)
+- **Data Persistence**: IndexedDB API
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Local Development
+
+**Prerequisites:** Node.js (v18+)
+
+1. Clone the repository and install dependencies:
+   ```bash
+   npm install
+   ```
+2. Run the application in your local web browser:
+   ```bash
+   npm run dev
+   ```
+
+## Android Deployment
+
+To compile the application into a standalone Android APK:
+
+1. Ensure you have the **Android SDK** and **Java** installed on your system.
+2. Run the automated build script:
+   ```bash
+   npm run android:build-apk
+   ```
+3. The newly generated APK will be located at:
+   `android/app/build/outputs/apk/debug/app-debug.apk`
+
+---
+*Created by TAISAN • © BrimstoneTech*
