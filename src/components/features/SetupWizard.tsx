@@ -5,6 +5,8 @@ import { cn } from '../../utils/theme';
 import { CURRENCIES, EXCHANGE_RATES, formatMoney } from '../../utils/currency';
 import { Frequency, IncomeSource, BudgetEnvelope } from '../../types';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+
 
 export const SetupWizard = () => {
     const {
@@ -14,7 +16,8 @@ export const SetupWizard = () => {
         dailyTarget, setDailyTarget,
         incomes, addIncome,
         envelopes, addEnvelope,
-        currentCurrency
+        currentCurrency,
+        updateSettings
     } = useBudget();
 
     const [setupStep, setSetupStep] = useState(1);
@@ -56,6 +59,7 @@ export const SetupWizard = () => {
         { id: 4, title: "Income", description: "Add your main income sources." },
         { id: 5, title: "Budgets", description: "Set up your first budget pots." },
         { id: 6, title: "Target", description: "Set your daily spending goal." },
+        { id: 7, title: "Security", description: "Protect your data with a PIN." },
     ];
 
     const nextStep = () => setSetupStep(prev => Math.min(steps.length, prev + 1));
@@ -129,96 +133,145 @@ export const SetupWizard = () => {
 
                             {setupStep === 4 && (
                                 <div className="space-y-4">
-                                    <div className="space-y-3">
-                                        {incomes.map(inc => (
-                                            <div key={inc.id} className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100">
-                                                <span className="text-sm font-bold">{inc.name}</span>
-                                                <span className="text-sm font-mono">{formatMoney(inc.amount * EXCHANGE_RATES.USD, 'USD')}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button
-                                        onClick={() => setIsAddingIncome(true)}
-                                        className="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-zinc-400 text-sm font-bold hover:border-zinc-900 hover:text-zinc-900 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Plus size={18} /> Add Income Source
-                                    </button>
+                                    <AnimatePresence>
+                                        <div className="space-y-2">
+                                            {incomes.map(inc => (
+                                                <motion.div
+                                                    key={inc.id}
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    className="flex items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-100"
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className="text-sm font-bold text-zinc-900">{inc.name}</span>
+                                                        <span className="text-[10px] text-zinc-400 uppercase font-medium tracking-wider">{inc.frequency}</span>
+                                                    </div>
+                                                    <span className="text-sm font-mono font-bold text-zinc-900">{formatMoney(inc.amount * EXCHANGE_RATES.USD, 'USD')}</span>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </AnimatePresence>
+
+                                    {!isAddingIncome && (
+                                        <div className="space-y-3">
+                                            <button
+                                                onClick={() => setIsAddingIncome(true)}
+                                                className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-zinc-400 text-sm font-bold hover:border-zinc-900 hover:text-zinc-900 transition-all flex items-center justify-center gap-2 group"
+                                            >
+                                                <Plus size={18} className="group-hover:rotate-90 transition-transform" /> Add Custom Income
+                                            </button>
+                                        </div>
+                                    )}
+
                                     {isAddingIncome && (
-                                        <div className="p-4 bg-zinc-50 rounded-2xl border-2 border-zinc-900 space-y-3">
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className="p-5 bg-zinc-50 rounded-2xl border-2 border-zinc-900 space-y-4 shadow-xl"
+                                        >
                                             <input
                                                 type="text"
-                                                placeholder="Salary, Freelance, etc."
+                                                placeholder="e.g. Salary, Rent Income"
                                                 value={newIncome.name}
                                                 onChange={e => setNewIncome({ ...newIncome, name: e.target.value })}
-                                                className="w-full px-4 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none"
+                                                className="w-full px-4 py-3 text-sm bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900/10 placeholder:text-zinc-300"
                                             />
                                             <div className="flex gap-2">
-                                                <input
-                                                    type="number"
-                                                    placeholder="Amount"
-                                                    value={newIncome.amount}
-                                                    onChange={e => setNewIncome({ ...newIncome, amount: e.target.value })}
-                                                    className="w-1/2 px-4 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none"
-                                                />
+                                                <div className="relative flex-1">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">$</span>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="0.00"
+                                                        value={newIncome.amount}
+                                                        onChange={e => setNewIncome({ ...newIncome, amount: e.target.value })}
+                                                        className="w-full pl-8 pr-4 py-3 text-sm bg-white border border-zinc-200 rounded-xl focus:outline-none"
+                                                    />
+                                                </div>
                                                 <select
                                                     value={newIncome.frequency}
                                                     onChange={e => setNewIncome({ ...newIncome, frequency: e.target.value as Frequency })}
-                                                    className="w-1/2 px-4 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none"
+                                                    className="w-1/3 px-3 py-3 text-sm bg-white border border-zinc-200 rounded-xl focus:outline-none appearance-none font-medium"
                                                 >
                                                     <option value="monthly">Monthly</option>
                                                     <option value="weekly">Weekly</option>
                                                 </select>
                                             </div>
-                                            <button
-                                                onClick={handleAddIncome}
-                                                className="w-full py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl"
-                                            >
-                                                Save Income
-                                            </button>
-                                        </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setIsAddingIncome(false)} className="flex-1 py-3 text-zinc-500 text-xs font-bold font-semibold">Cancel</button>
+                                                <button
+                                                    onClick={handleAddIncome}
+                                                    className="flex-[2] py-3 bg-zinc-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-zinc-900/20"
+                                                >
+                                                    Confirm Income
+                                                </button>
+                                            </div>
+                                        </motion.div>
                                     )}
                                 </div>
                             )}
 
                             {setupStep === 5 && (
                                 <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {envelopes.map(env => (
-                                            <div key={env.id} className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 flex flex-col gap-1">
-                                                <span className="text-xs font-bold">{env.name}</span>
-                                                <span className="text-[10px] font-mono opacity-60">{formatMoney(env.limit * EXCHANGE_RATES.USD, 'USD')}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <button
-                                        onClick={() => setIsAddingEnvelope(true)}
-                                        className="w-full py-3 border-2 border-dashed border-zinc-200 rounded-2xl text-zinc-400 text-sm font-bold hover:border-zinc-900 hover:text-zinc-900 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Plus size={18} /> Create Budget Pot
-                                    </button>
-                                    {isAddingEnvelope && (
-                                        <div className="p-4 bg-zinc-50 rounded-2xl border-2 border-zinc-900 space-y-3">
-                                            <input
-                                                type="text"
-                                                placeholder="Groceries, Rent, etc."
-                                                value={newEnvelope.name}
-                                                onChange={e => setNewEnvelope({ ...newEnvelope, name: e.target.value })}
-                                                className="w-full px-4 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none"
-                                            />
-                                            <input
-                                                type="number"
-                                                placeholder="Limit"
-                                                value={newEnvelope.limit}
-                                                onChange={e => setNewEnvelope({ ...newEnvelope, limit: e.target.value })}
-                                                className="w-full px-4 py-2 text-sm border border-zinc-200 rounded-xl focus:outline-none"
-                                            />
+                                    <AnimatePresence>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {envelopes.map(env => (
+                                                <motion.div
+                                                    key={env.id}
+                                                    initial={{ opacity: 0, scale: 0.9 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 flex flex-col gap-1 shadow-sm"
+                                                >
+                                                    <span className="text-xs font-black text-zinc-900">{env.name}</span>
+                                                    <span className="text-[10px] font-mono font-bold text-zinc-500">{formatMoney(env.limit * EXCHANGE_RATES.USD, 'USD')}</span>
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </AnimatePresence>
+
+                                    {!isAddingEnvelope && (
+                                        <div className="space-y-3">
                                             <button
-                                                onClick={handleAddEnvelope}
-                                                className="w-full py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl"
+                                                onClick={() => setIsAddingEnvelope(true)}
+                                                className="w-full py-4 border-2 border-dashed border-zinc-200 rounded-2xl text-zinc-400 text-sm font-bold hover:border-zinc-900 hover:text-zinc-900 transition-all flex items-center justify-center gap-2 group"
                                             >
-                                                Save Pot
+                                                <Plus size={18} className="group-hover:rotate-90 transition-transform" /> New Budget Pot
                                             </button>
                                         </div>
+                                    )}
+
+                                    {isAddingEnvelope && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="p-5 bg-zinc-50 rounded-2xl border-2 border-zinc-900 space-y-4 shadow-xl"
+                                        >
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Rent, Groceries, Savings"
+                                                value={newEnvelope.name}
+                                                onChange={e => setNewEnvelope({ ...newEnvelope, name: e.target.value })}
+                                                className="w-full px-4 py-3 text-sm bg-white border border-zinc-200 rounded-xl focus:outline-none"
+                                            />
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">$</span>
+                                                <input
+                                                    type="number"
+                                                    placeholder="Monthly Limit"
+                                                    value={newEnvelope.limit}
+                                                    onChange={e => setNewEnvelope({ ...newEnvelope, limit: e.target.value })}
+                                                    className="w-full pl-8 pr-4 py-3 text-sm bg-white border border-zinc-200 rounded-xl focus:outline-none"
+                                                />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => setIsAddingEnvelope(false)} className="flex-1 py-3 text-zinc-500 text-xs font-bold font-semibold">Cancel</button>
+                                                <button
+                                                    onClick={handleAddEnvelope}
+                                                    className="flex-[2] py-3 bg-zinc-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-zinc-900/20"
+                                                >
+                                                    Confirm Pot
+                                                </button>
+                                            </div>
+                                        </motion.div>
                                     )}
                                 </div>
                             )}
@@ -237,24 +290,55 @@ export const SetupWizard = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {setupStep === 7 && (
+                                <div className="space-y-4">
+                                    <div className="text-center space-y-2 mb-6">
+                                        <p className="text-sm text-zinc-500">Create a 4-digit PIN to secure your app.</p>
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <input
+                                            type="password"
+                                            maxLength={4}
+                                            placeholder="****"
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val.length === 4) {
+                                                    updateSettings({ securityPin: val });
+                                                }
+                                            }}
+                                            className="w-32 text-center py-4 bg-zinc-50 border-2 border-zinc-100 rounded-2xl text-2xl font-black tracking-[0.5em] focus:outline-none focus:border-zinc-900 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex gap-3 pt-4">
                             {setupStep > 1 && (
-                                <button
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
                                     onClick={prevStep}
                                     className="flex-1 py-4 bg-zinc-100 text-zinc-600 text-sm font-bold rounded-2xl hover:bg-zinc-200 transition-all"
                                 >
                                     Back
-                                </button>
+                                </motion.button>
                             )}
-                            <button
-                                onClick={setupStep === steps.length ? () => setShowSetup(false) : nextStep}
+                            <motion.button
+                                whileTap={{ scale: 0.98 }}
+                                onClick={async () => {
+                                    if (setupStep === steps.length) {
+                                        await updateSettings({ setupComplete: 'true' });
+                                        setShowSetup(false);
+                                    } else {
+                                        nextStep();
+                                    }
+                                }}
                                 className="flex-[2] py-4 bg-zinc-900 text-white text-sm font-bold rounded-2xl hover:bg-zinc-800 shadow-lg shadow-zinc-900/20 transition-all flex items-center justify-center gap-2"
                             >
                                 {setupStep === steps.length ? "Finish Setup" : "Continue"}
                                 <ArrowRight size={18} />
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
-import { Transaction, Bill, IncomeSource, BudgetEnvelope, AppNotification } from '../types';
+import { Transaction, Bill, IncomeSource, BudgetEnvelope, AppNotification, SavingsGoal } from '../types';
 import { CURRENCIES, EXCHANGE_RATES } from '../utils/currency';
 import { isSameDay, addDays, differenceInDays, format } from 'date-fns';
 import { api } from '../services/api';
@@ -7,8 +7,9 @@ import { api } from '../services/api';
 interface BudgetContextType {
     showSetup: boolean;
     setShowSetup: React.Dispatch<React.SetStateAction<boolean>>;
-    displayCurrency: string;
     setDisplayCurrency: (val: string) => Promise<void>;
+    privacyMode: boolean;
+    togglePrivacyMode: () => void;
     balance: number;
     setBalance: (val: number) => Promise<void>;
     dailyTarget: number;
@@ -35,6 +36,12 @@ interface BudgetContextType {
     markNotificationRead: (id: number) => Promise<void>;
     deleteNotification: (id: number) => Promise<void>;
 
+    savingsGoals: SavingsGoal[];
+    addSavingsGoal: (goal: Omit<SavingsGoal, 'id' | 'currentAmount' | 'tasks'>) => Promise<void>;
+    addFundsToGoal: (id: number, amount: number) => Promise<void>;
+    toggleSavingsTask: (goalId: number, taskId: number) => Promise<void>;
+    deleteSavingsGoal: (id: number) => Promise<void>;
+
     todaySpend: number;
     yesterdaySpend: number;
     efficiency: number;
@@ -43,6 +50,17 @@ interface BudgetContextType {
     daysUntilZero: number;
     alertLevel: { color: string; text: string; icon: any };
     isDataLoaded: boolean;
+    suggestCategory: (merchantName: string) => string | null;
+    settings: {
+        fiscalDay: number;
+        hapticsEnabled: boolean;
+        biometricsEnabled: boolean;
+        hideBalancesOnStartup: boolean;
+        theme: 'light' | 'dark' | 'vibrant';
+        securityPin: string;
+    };
+    updateSettings: (newSettings: any) => Promise<void>;
+    resetApp: () => Promise<void>;
 }
 
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
@@ -50,6 +68,7 @@ const BudgetContext = createContext<BudgetContextType | undefined>(undefined);
 export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [showSetup, setShowSetup] = useState(true);
     const [displayCurrency, setLocalDisplayCurrency] = useState('UGX');
+    const [privacyMode, setPrivacyMode] = useState(false);
     const [balance, setLocalBalance] = useState(0);
     const [dailyTarget, setLocalDailyTarget] = useState(0);
 
@@ -57,19 +76,34 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [bills, setLocalBills] = useState<Bill[]>([]);
     const [envelopes, setLocalEnvelopes] = useState<BudgetEnvelope[]>([]);
     const [incomes, setLocalIncomes] = useState<IncomeSource[]>([]);
+    const togglePrivacyMode = () => setPrivacyMode(prev => !prev);
     const [notifications, setLocalNotifications] = useState<AppNotification[]>([]);
+    const [savingsGoals, setLocalSavingsGoals] = useState<SavingsGoal[]>([]);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [settings, setSettings] = useState({
+        fiscalDay: 1,
+        hapticsEnabled: true,
+        biometricsEnabled: true,
+        hideBalancesOnStartup: false,
+        theme: 'light' as 'light' | 'dark' | 'vibrant',
+        securityPin: ''
+    });
+
+    useEffect(() => {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+    }, [settings.theme]);
 
     // Initial Data Fetch
     const loadData = useCallback(async () => {
         try {
-            const [txs, blls, envs, incs, notifs, sttngs] = await Promise.all([
+            const [txs, blls, envs, incs, notifs, sttngs, goals] = await Promise.all([
                 api.getTransactions(),
                 api.getBills(),
                 api.getEnvelopes(),
                 api.getIncomes(),
                 api.getNotifications(),
-                api.getSettings()
+                api.getSettings(),
+                api.getSavingsGoals()
             ]);
 
             setLocalTransactions(txs);
@@ -77,6 +111,7 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setLocalEnvelopes(envs);
             setLocalIncomes(incs);
             setLocalNotifications(notifs);
+            setLocalSavingsGoals(goals);
 
             if (sttngs.balance) setLocalBalance(Number(sttngs.balance));
             if (sttngs.dailyTarget) setLocalDailyTarget(Number(sttngs.dailyTarget));
@@ -97,6 +132,35 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    // Automated Reminders
+    useEffect(() => {
+        if (!isDataLoaded) return;
+
+        const checkGoals = () => {
+            savingsGoals.forEach(goal => {
+                const percent = (goal.currentAmount / goal.targetAmount) * 100;
+                if (percent >= 100) {
+                    addNotification({
+                        title: "Goal Reached! 🎉",
+                        message: `Congratulations! You've hit your target for ${goal.name}.`,
+                        type: 'success',
+                        date: new Date()
+                    });
+                } else if (percent >= 80) {
+                    addNotification({
+                        title: "Almost There!",
+                        message: `You're 80% of the way to your ${goal.name} goal. Keep going!`,
+                        type: 'info',
+                        date: new Date()
+                    });
+                }
+            });
+        };
+
+        const timer = setTimeout(checkGoals, 5000); // Check once after load
+        return () => clearTimeout(timer);
+    }, [isDataLoaded, savingsGoals.length]);
 
 
     // Mutator Wrappers
@@ -177,6 +241,36 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setLocalNotifications(notifications.filter(n => n.id !== id));
     };
 
+    const addSavingsGoal = async (goal: Omit<SavingsGoal, 'id' | 'currentAmount' | 'tasks'>) => {
+        const { id } = await api.addSavingsGoal(goal);
+        setLocalSavingsGoals([...savingsGoals, { ...goal, id, currentAmount: 0, tasks: [] }]);
+    };
+
+    const addFundsToGoal = async (id: number, amount: number) => {
+        await api.addFundsToGoal(id, amount);
+        setLocalSavingsGoals(savingsGoals.map(g => g.id === id ? { ...g, currentAmount: g.currentAmount + amount } : g));
+    };
+
+    const toggleSavingsTask = async (goalId: number, taskId: number) => {
+        // Optimistic UI update
+        const updatedGoals = savingsGoals.map(g => {
+            if (g.id === goalId) {
+                return {
+                    ...g,
+                    tasks: g.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t)
+                };
+            }
+            return g;
+        });
+        setLocalSavingsGoals(updatedGoals);
+        // In a real app, we'd call api.toggleTask(goalId, taskId)
+    };
+
+    const deleteSavingsGoal = async (id: number) => {
+        await api.deleteSavingsGoal(id);
+        setLocalSavingsGoals(savingsGoals.filter(g => g.id !== id));
+    };
+
     // Computed Values
     const todaySpend = useMemo(() => {
         const today = new Date();
@@ -209,21 +303,36 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         for (let i = 0; i < 30; i++) {
             const date = addDays(today, i);
-            current -= dailyTarget;
 
+            // Only subtract daily target if it's not the first day (we might have already spent today)
+            if (i > 0) current -= dailyTarget;
+
+            // Handle bills on their specific day
             bills.forEach(bill => {
-                if (isSameDay(new Date(bill.date), date)) current -= bill.amount;
+                if (isSameDay(new Date(bill.date), date)) current -= (bill.amount * EXCHANGE_RATES.USD); // Normalize to UGX
             });
 
+            // Handle income based on frequency
             incomes.forEach(income => {
                 const start = new Date(income.startDate);
-                if (income.frequency === 'once' && isSameDay(start, date)) current += income.amount;
-                else if (income.frequency === 'weekly' && differenceInDays(date, start) >= 0 && differenceInDays(date, start) % 7 === 0) current += income.amount;
-                else if (income.frequency === 'bi-weekly' && differenceInDays(date, start) >= 0 && differenceInDays(date, start) % 14 === 0) current += income.amount;
-                else if (income.frequency === 'monthly' && date.getDate() === start.getDate()) current += income.amount;
+                const ugxAmount = income.amount * EXCHANGE_RATES.USD; // Normalize to UGX
+
+                if (income.frequency === 'once' && isSameDay(start, date)) {
+                    current += ugxAmount;
+                } else if (income.frequency === 'weekly' && differenceInDays(date, start) >= 0 && differenceInDays(date, start) % 7 === 0) {
+                    current += ugxAmount;
+                } else if (income.frequency === 'bi-weekly' && differenceInDays(date, start) >= 0 && differenceInDays(date, start) % 14 === 0) {
+                    current += ugxAmount;
+                } else if (income.frequency === 'monthly' && date.getDate() === start.getDate() && differenceInDays(date, start) >= 0) {
+                    current += ugxAmount;
+                }
             });
 
-            data.push({ date: format(date, 'MMM dd'), balance: Math.max(0, current), isZero: current <= 0 });
+            data.push({
+                date: format(date, 'MMM dd'),
+                balance: Math.max(0, current),
+                isZero: current <= 0
+            });
         }
         return data;
     }, [balance, incomes, bills, dailyTarget]);
@@ -234,15 +343,24 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [projectionData]);
 
     const alertLevel = useMemo(() => {
-        if (daysUntilZero < 3) return { color: "rose", text: "CRITICAL", icon: null };
-        if (daysUntilZero < 7) return { color: "amber", text: "WARNING", icon: null };
-        return { color: "emerald", text: "HEALTHY", icon: null };
+        if (daysUntilZero < 3) return { color: "rose", text: "CRITICAL", icon: 'AlertCircle' };
+        if (daysUntilZero < 10) return { color: "amber", text: "WARNING", icon: 'AlertTriangle' };
+        return { color: "emerald", text: "HEALTHY", icon: 'ShieldCheck' };
     }, [daysUntilZero]);
+
+    const suggestCategory = useCallback((merchantName: string) => {
+        if (!merchantName) return null;
+        const lastTx = transactions.find(tx =>
+            tx.name.toLowerCase().trim() === merchantName.toLowerCase().trim()
+        );
+        return lastTx ? lastTx.category : null;
+    }, [transactions]);
 
     return (
         <BudgetContext.Provider value={{
             showSetup, setShowSetup,
             displayCurrency, setDisplayCurrency,
+            privacyMode, togglePrivacyMode,
             balance, setBalance,
             dailyTarget, setDailyTarget,
             transactions, addTransaction, deleteTransaction,
@@ -250,8 +368,20 @@ export const BudgetProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             envelopes, addEnvelope, deleteEnvelope,
             incomes, addIncome, deleteIncome,
             notifications, addNotification, markNotificationRead, deleteNotification,
+            savingsGoals, addSavingsGoal, addFundsToGoal, toggleSavingsTask, deleteSavingsGoal,
             todaySpend, yesterdaySpend, efficiency,
-            currentCurrency, projectionData, daysUntilZero, alertLevel, isDataLoaded
+            currentCurrency, projectionData, daysUntilZero, alertLevel, isDataLoaded,
+            suggestCategory,
+            settings,
+            updateSettings: async (newSettings: any) => {
+                const updated = { ...settings, ...newSettings };
+                setSettings(updated);
+                await api.updateSettings(newSettings);
+            },
+            resetApp: async () => {
+                await api.resetDatabase();
+                window.location.reload();
+            }
         }}>
             {children}
         </BudgetContext.Provider>

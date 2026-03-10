@@ -12,8 +12,9 @@ export const EXCHANGE_RATES: Record<string, number> = {
     UGX: 1,
 };
 
-export const formatMoney = (ugxAmount: number, code: string = 'UGX') => {
+export const formatMoney = (ugxAmount: number, code: string = 'UGX', privacyMode: boolean = false) => {
     const currency = CURRENCIES.find(c => c.code === code) || CURRENCIES[0];
+    if (privacyMode) return `${currency.symbol} ••••`;
     const converted = ugxAmount / currency.rate;
     return `${currency.symbol} ${converted.toLocaleString(undefined, {
         minimumFractionDigits: currency.code === 'UGX' ? 0 : 2,

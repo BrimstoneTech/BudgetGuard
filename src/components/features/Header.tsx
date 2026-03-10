@@ -1,16 +1,16 @@
 import React from 'react';
-import { ShieldAlert, Bell, History, Settings } from 'lucide-react';
+import { ShieldAlert, Bell, History, Settings, Eye, EyeOff } from 'lucide-react';
 import { useBudget } from '../../context/BudgetContext';
 import { CURRENCIES } from '../../utils/currency';
 
 export const Header = ({ onToggleNotifications, unreadCount }: { onToggleNotifications: () => void, unreadCount: number }) => {
-    const { displayCurrency, setDisplayCurrency } = useBudget();
+    const { displayCurrency, setDisplayCurrency, privacyMode, togglePrivacyMode } = useBudget();
 
     return (
-        <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-zinc-200 px-6 py-4">
+        <header className="sticky top-0 z-50 bg-[var(--bg-secondary)]/80 backdrop-blur-md border-b border-[var(--border-color)] px-6 py-4">
             <div className="max-w-7xl mx-auto flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center text-white">
+                    <div className="w-10 h-10 bg-[var(--accent-primary)] rounded-xl flex items-center justify-center text-[var(--bg-secondary)]">
                         <ShieldAlert size={24} />
                     </div>
                     <div>
@@ -19,6 +19,13 @@ export const Header = ({ onToggleNotifications, unreadCount }: { onToggleNotific
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
+                    <button
+                        onClick={togglePrivacyMode}
+                        className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500"
+                        title={privacyMode ? "Show balances" : "Hide balances"}
+                    >
+                        {privacyMode ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
                     <select
                         value={displayCurrency}
                         onChange={(e) => setDisplayCurrency(e.target.value)}

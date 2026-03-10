@@ -123,4 +123,28 @@ router.delete('/notifications/:id', (req, res) => {
     res.json({ success: true });
 });
 
+// --- Savings Goals ---
+router.get('/savings_goals', (req, res) => {
+    const goals = db.prepare('SELECT id, name, target_amount as targetAmount, current_amount as currentAmount, color, deadline FROM savings_goals').all();
+    res.json(goals);
+});
+
+router.post('/savings_goals', (req, res) => {
+    const { name, targetAmount, color, deadline } = req.body;
+    const stmt = db.prepare('INSERT INTO savings_goals (name, target_amount, current_amount, color, deadline) VALUES (?, ?, 0, ?, ?)');
+    const result = stmt.run(name, targetAmount, color, deadline);
+    res.json({ id: result.lastInsertRowid });
+});
+
+router.patch('/savings_goals/:id/fund', (req, res) => {
+    const { amount } = req.body;
+    db.prepare('UPDATE savings_goals SET current_amount = current_amount + ? WHERE id = ?').run(amount, req.params.id);
+    res.json({ success: true });
+});
+
+router.delete('/savings_goals/:id', (req, res) => {
+    db.prepare('DELETE FROM savings_goals WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+});
+
 export default router;

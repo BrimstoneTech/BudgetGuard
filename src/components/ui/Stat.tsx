@@ -15,15 +15,15 @@ export const Stat = ({ label, value, subValue, icon: Icon, trend, color = "zinc"
     <Card className="flex-1">
         <div className="flex items-start justify-between">
             <div>
-                <p className="text-xs font-medium text-zinc-500 mb-1 uppercase tracking-tight">{label}</p>
-                <h4 className="text-2xl font-bold text-zinc-900 tracking-tight">{value}</h4>
-                {subValue && <p className="text-xs text-zinc-400 mt-1">{subValue}</p>}
+                <p className="text-xs font-medium text-[var(--text-secondary)] mb-1 uppercase tracking-tight">{label}</p>
+                <h4 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">{value}</h4>
+                {subValue && <p className="text-xs text-[var(--text-secondary)] mt-1">{subValue}</p>}
             </div>
             <div className={cn("p-2 rounded-lg", {
-                "bg-emerald-50 text-emerald-600": color === "emerald",
-                "bg-amber-50 text-amber-600": color === "amber",
-                "bg-rose-50 text-rose-600": color === "rose",
-                "bg-zinc-50 text-zinc-600": color === "zinc",
+                "bg-emerald-500/10 text-emerald-500": color === "emerald",
+                "bg-amber-500/10 text-amber-500": color === "amber",
+                "bg-rose-500/10 text-rose-500": color === "rose",
+                "bg-[var(--bg-primary)] text-[var(--text-secondary)]": color === "zinc",
             })}>
                 <Icon size={20} />
             </div>

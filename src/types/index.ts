@@ -44,3 +44,13 @@ export interface AppNotification {
     date: Date;
     read: boolean;
 }
+
+export interface SavingsGoal {
+    id: number;
+    name: string;
+    targetAmount: number;
+    currentAmount: number;
+    color: string;
+    deadline?: string;
+    tasks: { id: number; text: string; completed: boolean }[];
+}
