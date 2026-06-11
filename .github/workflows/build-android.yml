@@ -41,13 +41,9 @@ jobs:
         cmdline-tools-version: '11.0'
         api-level: 36
         build-tools-version: '36.0.0'
-        ndk-version: '27.1.112893'
     
     - name: Set gradlew as executable
       run: chmod +x android/gradlew
-      
-    - name: Install Capacitor CLI globally
-      run: npm install -g @capacitor/cli @capacitor/core
       
     - name: Sync Capacitor
       run: npx cap sync android
@@ -55,8 +51,7 @@ jobs:
     - name: Build Android APK
       run: |
         cd android
-        ./gradlew clean
-        ./gradlew assembleDebug --stacktrace
+        ./gradlew clean assembleDebug --stacktrace
         cd ..
     
     - name: Rename APK
