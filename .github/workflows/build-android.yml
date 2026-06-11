@@ -34,12 +34,14 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
-    - name: Install Android SDK
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y android-sdk
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.112893"
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        android-accept-licenses: true
+        cmdline-tools-version: '11.0'
+        api-level: 36
+        build-tools-version: '36.0.0'
+        ndk-version: '27.1.112893'
     
     - name: Set gradlew as executable
       run: chmod +x android/gradlew
