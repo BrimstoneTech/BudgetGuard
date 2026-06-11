@@ -34,18 +34,20 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
-    - name: Install Android command-line tools
-      run: |
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip commandlinetools-linux-11076708_latest.zip
-        mkdir -p ~/.android/cmdline-tools/latest
-        mv cmdline-tools/* ~/.android/cmdline-tools/latest/
-        export PATH=$PATH:~/.android/cmdline-tools/latest/bin
-        yes | sdkmanager --licenses
-        sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.112893"
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v2
+      with:
+        android-accept-licenses: true
+        cmdline-tools-version: '11.0'
+        api-level: 36
+        build-tools-version: '36.0.0'
+        ndk-version: '27.1.112893'
     
     - name: Set gradlew as executable
       run: chmod +x android/gradlew
+      
+    - name: Install Capacitor CLI globally
+      run: npm install -g @capacitor/cli @capacitor/core
       
     - name: Sync Capacitor
       run: npx cap sync android
@@ -53,7 +55,7 @@ jobs:
     - name: Build Android APK
       run: |
         cd android
-        ./gradlew clean assembleDebug --stacktrace
+        ./gradlew clean assembleDebug --stacktrace --info
         cd ..
     
     - name: Rename APK
