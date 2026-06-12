@@ -5,12 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     
     steps:
     - name: Checkout repository
@@ -43,24 +40,15 @@ jobs:
         build-tools-version: '30.0.3'
         ndk-version: '26.2.11394342'
     
-    - name: Set gradlew as executable
-      run: chmod +x android/gradlew
-      
-    - name: Install Capacitor CLI globally
-      run: npm install -g @capacitor/cli @capacitor/core
-      
-    - name: Sync Capacitor
-      run: npx cap sync android
-    
     - name: Build Android APK
       run: |
         cd android
-        ./gradlew clean assembleDebug --stacktrace
+        .\gradlew.bat clean assembleDebug --stacktrace
         cd ..
     
     - name: Rename APK
       run: |
-        mv android/app/build/outputs/apk/debug/app-debug.apk budgetguard.apk
+        mv android\app\build\outputs\apk\debug\app-debug.apk budgetguard.apk
     
     - name: Upload APK as artifact
       uses: actions/upload-artifact@v4
