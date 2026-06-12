@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout repository
@@ -43,7 +43,8 @@ jobs:
     - name: Build Android APK
       run: |
         cd android
-        .\gradlew.bat clean assembleDebug --stacktrace
+        chmod +x gradlew
+        ./gradlew clean assembleDebug --stacktrace
         cd ..
     
     - name: Rename APK
