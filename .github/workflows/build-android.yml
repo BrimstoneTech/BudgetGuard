@@ -29,7 +29,7 @@ jobs:
       
     - name: Build PWA
       run: npm run build
-    
+      
     - name: Sync Capacitor to Android
       run: npx cap sync android
       
@@ -87,7 +87,7 @@ jobs:
       
     - name: Build PWA
       run: npm run build
-    
+      
     - name: Sync Capacitor to Android
       run: npx cap sync android
       
@@ -108,7 +108,7 @@ jobs:
       env:
         KEYSTORE_ENCODED: ${{ secrets.KEYSTORE_ENCODED }}
       run: |
-        echo $KEYSTORE_ENCODED | base64 -d > android/app/budgetguard.keystore
+        echo "$KEYSTORE_ENCODED" | base64 --decode > android/app/budgetguard.keystore
     
     - name: Build Release APK
       env:
