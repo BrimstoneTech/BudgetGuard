@@ -7,6 +7,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -126,15 +129,29 @@ jobs:
           --stacktrace -Dorg.gradle.java.home=$JAVA_HOME
         cd ..
     
+    - name: Get version from tag
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
     - name: Rename Release APK
       run: |
-        mv android/app/build/outputs/apk/release/app-release.apk budgetguard-${GITHUB_REF#refs/tags/}.apk
+        mv android/app/build/outputs/apk/release/app-release.apk budgetguard-v${{ steps.version.outputs.version }}.apk
     
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
       with:
-        files: budgetguard-*.apk
-        draft: true
+        files: budgetguard-v${{ steps.version.outputs.version }}.apk
+        draft: false
         prerelease: false
+        generate_release_notes: true
+        name: "BudgetGuard v${{ steps.version.outputs.version }}"
+        body: |
+          ## 📱 BudgetGuard v${{ steps.version.outputs.version }}
+
+          Premium Offline-First Financial Intelligence app for Android.
+
+          ### Download
+          Download the APK below and install on your Android device.
+          > **Note:** You may need to enable *Install from unknown sources* in your Android settings.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
