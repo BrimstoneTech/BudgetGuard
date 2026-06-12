@@ -34,11 +34,9 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
       with:
-        android-accept-licenses: true
         cmdline-tools-version: '9.0'
-        api-level: 30
-        build-tools-version: '30.0.3'
-        ndk-version: '26.2.11394342'
+        accept-android-sdk-licenses: true
+        packages: 'platforms;android-30 build-tools;30.0.3 ndk;26.2.11394342'
     
     - name: Build Android APK
       run: |
