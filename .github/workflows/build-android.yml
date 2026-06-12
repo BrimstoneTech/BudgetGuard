@@ -113,8 +113,10 @@ jobs:
       run: |
         python3 -c "
         import base64, os
-        encoded = os.environ['KEYSTORE_ENCODED']
-        decoded = base64.b64decode(''.join(encoded.split()))
+        encoded = ''.join(os.environ['KEYSTORE_ENCODED'].split())
+        # Re-add padding stripped by PowerShell encoding
+        encoded += '=' * (-len(encoded) % 4)
+        decoded = base64.b64decode(encoded)
         open('android/app/budgetguard.keystore', 'wb').write(decoded)
         print(f'Keystore decoded successfully: {len(decoded)} bytes')
         "
