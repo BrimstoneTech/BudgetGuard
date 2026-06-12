@@ -121,20 +121,16 @@ jobs:
         print(f'Keystore decoded successfully: {len(decoded)} bytes')
         "
     
-    - name: Build Release APK
+    - name: Verify Keystore and Build Release APK
       env:
         KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
+        keytool -list -v -keystore android/app/budgetguard.keystore -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS"
         cd android
         chmod +x gradlew
-        ./gradlew clean assembleRelease \
-          -Pandroid.injected.signing.store.file=app/budgetguard.keystore \
-          -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-          -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-          -Pandroid.injected.signing.key.password=$KEY_PASSWORD \
-          --stacktrace -Dorg.gradle.java.home=$JAVA_HOME
+        ./gradlew clean assembleRelease --stacktrace -Dorg.gradle.java.home=$JAVA_HOME
         cd ..
     
     - name: Get version from tag
