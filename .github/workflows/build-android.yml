@@ -111,7 +111,13 @@ jobs:
       env:
         KEYSTORE_ENCODED: ${{ secrets.KEYSTORE_ENCODED }}
       run: |
-        echo "$KEYSTORE_ENCODED" | tr -d ' \r\n' | base64 --decode > android/app/budgetguard.keystore
+        python3 -c "
+        import base64, os
+        encoded = os.environ['KEYSTORE_ENCODED']
+        decoded = base64.b64decode(''.join(encoded.split()))
+        open('android/app/budgetguard.keystore', 'wb').write(decoded)
+        print(f'Keystore decoded successfully: {len(decoded)} bytes')
+        "
     
     - name: Build Release APK
       env:
